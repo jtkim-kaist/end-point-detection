@@ -1,0 +1,6 @@
+model_checkpoint_path: "/home/jskim/PycharmProjects/VAD-CNN-e-robot/logs/model.ckpt-13050"
+all_model_checkpoint_paths: "/home/jskim/PycharmProjects/VAD-CNN-e-robot/logs/model.ckpt-11250"
+all_model_checkpoint_paths: "/home/jskim/PycharmProjects/VAD-CNN-e-robot/logs/model.ckpt-11700"
+all_model_checkpoint_paths: "/home/jskim/PycharmProjects/VAD-CNN-e-robot/logs/model.ckpt-12150"
+all_model_checkpoint_paths: "/home/jskim/PycharmProjects/VAD-CNN-e-robot/logs/model.ckpt-12600"
+all_model_checkpoint_paths: "/home/jskim/PycharmProjects/VAD-CNN-e-robot/logs/model.ckpt-13050"
