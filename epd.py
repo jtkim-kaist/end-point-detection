@@ -132,9 +132,7 @@ class EPD(object):
 
 if __name__ == '__main__':
 
-    prj_dir = os.path.dirname(__file__)
-
-    clean_list = sorted(glob.glob(prj_dir + '/*.wav'))
+    clean_list = sorted(glob.glob('./*.wav'))
 
     win_size = int(config.fs * 0.001 * 200)  # 200 ms
 
