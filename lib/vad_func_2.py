@@ -12,7 +12,7 @@ import time
 
 
 norm_dir = os.path.abspath('./data/train/norm'+'/norm.mat')
-graph_name = sorted(glob.glob(os.path.abspath('./saved_model2/*.pb')))[-1]
+graph_name = sorted(glob.glob(os.path.abspath('./saved_model/*.pb')))[-1]
 graph = gt.load_graph(graph_name)
 sess_config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
 sess = tf.Session(graph=graph, config=sess_config)
