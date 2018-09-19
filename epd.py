@@ -1,7 +1,7 @@
 import sys
 sys.path.insert(0, './lib')
 
-import vad_func
+import vad_func_2
 import os
 import matplotlib.pyplot as plt
 import librosa
@@ -11,6 +11,7 @@ import tensorflow as tf
 from lib import config
 import glob
 import soundfile as sf
+import lib.se_lib.se_test as se
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -18,16 +19,16 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 class EPD(object):
 
-    def __init__(self, win_size):
+    def __init__(self):
 
-        self.fs = int(16000)
-        self.speech_seg = win_size  # 100 ms
-        self.speech_minlen = int(self.fs * 0.001 * 2000)  # 1000 ms
-        self.speech_maxlen = int(self.fs * 0.001 * 10000)  # 5000 ms
+        self.fs = config.fs
+        self.speech_seg = config.win_size  # 100 ms
+        self.speech_minlen = config.speech_minlen
+        self.speech_maxlen = config.speech_maxlen
 
-        self.speech_threshold = 0.5
+        self.speech_threshold = config.speech_threshold
 
-        self.transition_buffer_size = 5
+        self.transition_buffer_size = config.transition_buffer_size
         self.transition_buffer = self.transition_buffer_size
 
         self.data_queue_size = 2
@@ -39,6 +40,7 @@ class EPD(object):
         self.speech_queue = []
 
         self.data_num = 0
+        self.SE = se.SE(graph_name='./saved_model/se/TSN_lsh.pb', target_fs=config.fs)
 
     def epd(self, data_seg):
 
@@ -56,7 +58,7 @@ class EPD(object):
 
         # conduct vad
 
-        vad_result = vad_func.vad(input_speech_buffer)
+        vad_result = vad_func_2.vad(input_speech_buffer)
 
         if np.mean(vad_result) >= self.speech_threshold and self.speech_state == 0:
             # start speech detection
@@ -91,19 +93,36 @@ class EPD(object):
                     # if the length of detected speech is more than minimum length of speech, save the speech
                     speech_final = np.concatenate(self.speech_queue, axis=0)
 
+                    ####### speech enhancement #######
+
+                    if config.speech_enhancement:
+                        speech_final = self.SE.enhance(speech_final)
+
+                        print('enhance done')
+
                     print("save speech %d" % self.data_num)
                     librosa.output.write_wav(
-                        './samples/epd_' + str(self.data_num).zfill(5) + '.wav', speech_final, self.fs)
+                        config.save_dir + '/epd_' + str(self.data_num).zfill(5) + '.wav', speech_final, self.fs,
+                        norm=True)
                     self.data_num = self.data_num + 1
 
                     self.initialize()
 
                 elif self.speech_data[-1] - self.speech_data[0] >= self.speech_maxlen:
                     speech_final = np.concatenate(self.speech_queue, axis=0)
+
+                    ####### speech enhancement #######
+
+                    if config.speech_enhancement:
+                        speech_final = self.SE.enhance(speech_final)
+
+                        print('enhance done')
+
                     print("exceed the maximum speech length")
                     print("save speech %d" % self.data_num)
                     librosa.output.write_wav(
-                        './samples/epd_' + str(self.data_num).zfill(5) + '.wav', speech_final, self.fs)
+                        config.save_dir + '/epd_' + str(self.data_num).zfill(5) + '.wav', speech_final, self.fs,
+                        norm=True)
                     self.data_num = self.data_num + 1
                     self.initialize()
 
@@ -116,6 +135,18 @@ class EPD(object):
                     self.speech_queue = []
 
         self.speech_indx = self.speech_indx + self.speech_seg
+
+    def epd_func(self, data):
+
+        start_idx = 0
+
+        while True:
+
+            if start_idx + self.speech_seg > data.shape[0]:
+                break
+            data_stream = data[start_idx:start_idx + self.speech_seg]
+            self.epd(data_stream)
+            start_idx = start_idx + self.speech_seg
 
     def initialize(self):
 
@@ -133,26 +164,11 @@ class EPD(object):
 if __name__ == '__main__':
 
     clean_list = sorted(glob.glob('./*.wav'))
-
-    win_size = int(config.fs * 0.001 * 200)  # 200 ms
-
     data, sr = sf.read(clean_list[0])
     data = librosa.core.resample(data, sr, config.fs)
     data = np.concatenate([data, np.squeeze(np.random.random([30000, 1]) * 0.0001)], axis=0)
     print("total speech time: %.4f" % (data.shape[0]/config.fs))
 
-    Detector = EPD(win_size)
+    Detector = EPD()
 
-    start_idx = 0
-    start_time = time.time()
-
-    while True:
-
-        if start_idx + win_size > data.shape[0]:
-            break
-        data_stream = data[start_idx:start_idx+win_size]
-        Detector.epd(data_stream)
-        start_idx = start_idx + win_size
-
-    end_time = time.time() - start_time
-    print(end_time)
+    Detector.epd_func(data)
